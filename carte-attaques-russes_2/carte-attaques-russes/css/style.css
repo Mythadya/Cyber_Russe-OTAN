@@ -1,0 +1,297 @@
+/* ==========================================================
+   VARIABLES (couleurs, tailles) — modifier ici pour changer le thème
+   ========================================================== */
+:root {
+  --fond: #0b0f17;
+  --surface: #121826;
+  --surface-2: #1a2233;
+  --bordure: #263048;
+  --texte: #e6e9ef;
+  --texte-2: #9aa3b5;
+  --texte-3: #6b7489;
+
+  --mer: #0d1422;
+  --pays-hors-europe: #161d2b;
+  --pays-trait: #2b3650;
+  --russie: #3a1418;
+  --russie-hachure: #7a2029;
+
+  /* Une couleur par type d'attaque (reprises en JS) */
+  --cyber: #3b9eff;
+  --sabotage: #ff7a3d;
+  --desinformation: #b57bff;
+  --aerien: #f5c542;
+
+  --officielle: #ef4444;
+  --soupconnee: #9aa3b5;
+
+  --rayon: 10px;
+  --police: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --police-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+}
+body {
+  display: flex;
+  flex-direction: column;
+  background: var(--fond);
+  color: var(--texte);
+  font-family: var(--police);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+button { font: inherit; color: inherit; cursor: pointer; }
+
+/* ==========================================================
+   EN-TÊTE
+   ========================================================== */
+.entete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px 32px;
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--bordure);
+}
+.entete h1 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.entete__sous-titre { margin: 4px 0 0; color: var(--texte-2); }
+#compteur-total { color: var(--texte); font-weight: 600; }
+
+/* Compteurs / filtres par type */
+.stats { display: flex; flex-wrap: wrap; gap: 8px; }
+.stat {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px 8px 10px;
+  background: var(--surface);
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+  transition: opacity .2s, border-color .2s;
+}
+.stat:hover { border-color: var(--texte-3); }
+.stat[aria-pressed="false"] { opacity: .4; }
+.stat svg { flex: none; }
+.stat__nombre { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.stat__libelle { font-size: 12px; color: var(--texte-2); text-align: left; line-height: 1.2; }
+
+/* ==========================================================
+   MISE EN PAGE PRINCIPALE : panneau + carte
+   ========================================================== */
+.page {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  min-height: 520px;
+  overflow: hidden;
+}
+
+/* ---------- Panneau latéral ---------- */
+.panneau {
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--bordure);
+  background: var(--surface);
+  overflow: hidden;
+}
+.bloc { padding: 14px 18px; border-bottom: 1px solid var(--bordure); }
+.bloc--liste { flex: 1; display: flex; flex-direction: column; min-height: 0; border-bottom: 0; padding-bottom: 0; }
+.bloc__titre {
+  display: flex; justify-content: space-between; align-items: baseline;
+  margin: 0 0 8px;
+  font-size: 11px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .08em;
+  color: var(--texte-3);
+}
+.bloc__aide { text-transform: none; letter-spacing: 0; font-weight: 400; }
+
+.champ {
+  width: 100%;
+  padding: 9px 12px;
+  background: var(--fond);
+  border: 1px solid var(--bordure);
+  border-radius: 8px;
+  color: var(--texte);
+  font: inherit;
+}
+.champ:focus { outline: 2px solid var(--cyber); outline-offset: -1px; }
+
+/* Bouton segmenté (attribution) */
+.segmente { display: flex; background: var(--fond); border: 1px solid var(--bordure); border-radius: 8px; padding: 3px; }
+.segmente button {
+  flex: 1; padding: 6px 4px; border: 0; border-radius: 6px; background: none;
+  color: var(--texte-2); font-size: 13px;
+}
+.segmente button.actif { background: var(--surface-2); color: var(--texte); font-weight: 600; }
+
+/* Mini-graphique par année */
+.annees { display: flex; gap: 3px; align-items: flex-end; height: 92px; }
+.annee {
+  flex: 1; display: flex; flex-direction: column; align-items: stretch; justify-content: flex-end;
+  height: 100%; padding: 0; border: 0; background: none;
+  transition: opacity .2s;
+}
+.annee[aria-pressed="false"] { opacity: .3; }
+.annee__barre { display: flex; flex-direction: column-reverse; gap: 1px; border-radius: 3px 3px 0 0; overflow: hidden; }
+.annee__barre span { display: block; }
+.annee__nombre { font-size: 11px; color: var(--texte-2); margin-bottom: 3px; font-variant-numeric: tabular-nums; }
+.annee__libelle { font-size: 11px; color: var(--texte-3); margin-top: 4px; font-family: var(--police-mono); }
+
+/* Liste des incidents */
+.liste { list-style: none; margin: 0 -18px; padding: 0; overflow-y: auto; flex: 1; }
+.liste li { border-top: 1px solid var(--bordure); }
+.liste button {
+  display: grid; grid-template-columns: 14px 1fr; gap: 10px;
+  width: 100%; padding: 10px 18px; border: 0; background: none; text-align: left;
+}
+.liste button:hover, .liste button.actif { background: var(--surface-2); }
+.liste svg { margin-top: 3px; }
+.liste__titre { font-weight: 500; }
+.liste__meta { font-size: 12px; color: var(--texte-3); margin-top: 2px; }
+.liste__vide { padding: 24px 18px; color: var(--texte-3); text-align: center; }
+
+/* ---------- Carte ---------- */
+.carte { position: relative; overflow: hidden; background: var(--mer); }
+#svg-carte { display: block; width: 100%; height: 100%; cursor: grab; }
+#svg-carte:active { cursor: grabbing; }
+
+.pays { stroke: var(--pays-trait); stroke-width: .6; vector-effect: non-scaling-stroke; transition: fill .3s; }
+.pays--hors { fill: var(--pays-hors-europe); }
+.pays--europe:hover { stroke: var(--texte); stroke-width: 1.2; }
+.pays--russie { stroke: var(--russie-hachure); }
+.etiquette-pays {
+  fill: var(--texte-3); font-size: 11px; font-weight: 500; text-anchor: middle; pointer-events: none;
+  paint-order: stroke; stroke: var(--mer); stroke-width: 3px; stroke-linejoin: round;
+}
+.etiquette-russie { fill: #d9707a; font-size: 13px; font-weight: 700; letter-spacing: .25em; text-transform: uppercase; }
+
+.marqueur { cursor: pointer; transition: opacity .2s; }
+.marqueur path { stroke: #0b0f17; stroke-width: 1.5; }
+.marqueur:hover path, .marqueur.actif path { stroke: #fff; stroke-width: 2; }
+.marqueur .halo { fill: none; stroke-width: 2; opacity: 0; }
+.marqueur.actif .halo { opacity: .8; animation: pulsation 1.6s ease-out infinite; }
+.lien-decalage { stroke: var(--texte-3); stroke-width: 1; opacity: .6; }
+@keyframes pulsation { from { r: 8; opacity: .9; } to { r: 22; opacity: 0; } }
+
+/* Zoom */
+.zoom { position: absolute; top: 16px; right: 16px; display: flex; flex-direction: column; gap: 4px; }
+.zoom button {
+  width: 34px; height: 34px; border-radius: 8px;
+  background: var(--surface); border: 1px solid var(--bordure); font-size: 18px;
+}
+.zoom button:hover { background: var(--surface-2); }
+
+/* Légende */
+.legende {
+  position: absolute; left: 16px; bottom: 16px;
+  padding: 10px 12px; width: 190px;
+  background: rgba(18, 24, 38, .92); border: 1px solid var(--bordure); border-radius: var(--rayon);
+  font-size: 12px;
+}
+.legende__titre { color: var(--texte-2); margin-bottom: 6px; }
+.legende__degrade { height: 8px; border-radius: 4px; }
+.legende__echelle { display: flex; justify-content: space-between; color: var(--texte-3); margin-top: 3px; font-variant-numeric: tabular-nums; }
+.legende__russie { display: flex; align-items: center; gap: 8px; margin-top: 8px; color: var(--texte-2); }
+.hachure {
+  width: 16px; height: 12px; border-radius: 2px;
+  background: repeating-linear-gradient(45deg, var(--russie) 0 3px, var(--russie-hachure) 3px 5px);
+}
+
+/* Infobulle */
+.infobulle {
+  position: absolute; pointer-events: none; z-index: 5;
+  max-width: 260px; padding: 8px 10px;
+  background: var(--surface-2); border: 1px solid var(--bordure); border-radius: 8px;
+  font-size: 12px; box-shadow: 0 6px 20px rgba(0,0,0,.4);
+}
+.infobulle strong { display: block; font-size: 13px; }
+.infobulle span { color: var(--texte-2); }
+
+/* Fiche détaillée */
+.fiche {
+  position: absolute; top: 16px; right: 62px; z-index: 6;
+  width: min(380px, calc(100% - 80px)); max-height: calc(100% - 32px); overflow-y: auto;
+  padding: 18px 20px;
+  background: var(--surface); border: 1px solid var(--bordure); border-radius: 12px;
+  box-shadow: 0 12px 40px rgba(0,0,0,.5);
+  animation: apparition .2s ease-out;
+}
+@keyframes apparition { from { opacity: 0; transform: translateY(-6px); } }
+.fiche__fermer {
+  position: absolute; top: 10px; right: 10px; width: 28px; height: 28px;
+  border: 0; border-radius: 6px; background: none; color: var(--texte-2); font-size: 20px;
+}
+.fiche__fermer:hover { background: var(--surface-2); color: var(--texte); }
+.fiche h3 { margin: 10px 0 4px; font-size: 17px; line-height: 1.3; padding-right: 20px; }
+.fiche__lieu { color: var(--texte-2); margin: 0 0 12px; }
+.fiche p { margin: 0 0 12px; }
+.fiche dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 0 0 14px; font-size: 13px; }
+.fiche dt { color: var(--texte-3); }
+.fiche dd { margin: 0; }
+.fiche a { color: var(--cyber); }
+
+.badges { display: flex; flex-wrap: wrap; gap: 6px; }
+.badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 9px; border-radius: 999px; font-size: 12px; font-weight: 600;
+  background: var(--surface-2); border: 1px solid var(--bordure);
+}
+.badge--officielle { color: #fca5a5; border-color: #7f1d1d; }
+.badge--soupconnee { color: var(--texte-2); }
+
+.pied { padding: 10px 24px; font-size: 12px; color: var(--texte-3); border-top: 1px solid var(--bordure); }
+
+
+/* ==========================================================
+   BASCULE « Attaques russes / Attaques contre la Russie »
+   ========================================================== */
+.sens {
+  display: inline-flex; margin-bottom: 10px; padding: 3px;
+  background: var(--surface); border: 1px solid var(--bordure); border-radius: 999px;
+}
+.sens button {
+  padding: 6px 14px; border: 0; border-radius: 999px; background: none;
+  color: var(--texte-2); font-size: 13px; font-weight: 500;
+}
+.sens button.actif { background: var(--texte); color: var(--fond); font-weight: 600; }
+.sens button:focus-visible { outline: 2px solid var(--cyber); outline-offset: 2px; }
+
+.segmente button { font-size: 12px; }
+
+.legende__note { margin-top: 6px; color: var(--texte-3); font-size: 11px; line-height: 1.35; }
+.legende__note:empty { display: none; }
+.hachure--cible { background: #5a2530; border: 1px solid #c2414f; }
+
+.badge--revendiquee { color: #fcd34d; border-color: #78350f; }
+.badge--guerre { color: #e6e9ef; background: #3f1d24; border-color: #7a2029; }
+.pays--cible { stroke: #c2414f; stroke-width: 1.2; }
+
+/* ==========================================================
+   RESPONSIVE (tablettes / téléphones)
+   ========================================================== */
+@media (max-width: 860px) {
+  .entete { padding: 14px 16px; }
+  body { height: auto; }
+  .page { flex: none; grid-template-columns: 1fr; grid-template-rows: 62vh auto; overflow: visible; }
+  .carte { order: -1; }
+  .panneau { border-right: 0; border-top: 1px solid var(--bordure); }
+  .liste { max-height: 420px; }
+  .fiche { right: 16px; left: 16px; width: auto; top: auto; bottom: 16px; max-height: 60%; }
+  .legende { display: none; }
+  .stat { padding: 6px 10px 6px 8px; }
+  .stat__nombre { font-size: 17px; }
+  .pied { padding: 10px 16px; }
+  .sens button { padding: 6px 10px; font-size: 12px; }
+}

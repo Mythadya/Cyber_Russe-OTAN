@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Guerre hybride Russie–Europe</title>
+  <meta name="description" content="Carte interactive des attaques russes contre les pays européens, et des attaques contre la Russie, depuis 2014.">
+
+  <!-- Polices -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- ============ EN-TÊTE ============ -->
+  <header class="entete">
+    <div class="entete__titre">
+      <!-- Bascule entre les deux sens de lecture de la carte -->
+      <div class="sens" id="filtre-sens" role="radiogroup" aria-label="Sens des attaques">
+        <button type="button" role="radio" data-valeur="russe" aria-checked="true" class="actif">Attaques russes</button>
+        <button type="button" role="radio" data-valeur="contre" aria-checked="false">Attaques contre la Russie</button>
+      </div>
+      <h1 id="titre-principal">Guerre hybride russe en Europe</h1>
+      <p class="entete__sous-titre" id="sous-titre"></p>
+    </div>
+
+    <!-- Compteurs par type : ils servent aussi de filtres -->
+    <div class="stats" id="stats" role="group" aria-label="Filtrer par type d'attaque"></div>
+  </header>
+
+  <main class="page">
+
+    <!-- ============ PANNEAU LATÉRAL ============ -->
+    <aside class="panneau" aria-label="Filtres et liste des incidents">
+
+      <section class="bloc">
+        <label class="bloc__titre" for="recherche">Rechercher</label>
+        <input type="search" id="recherche" class="champ" placeholder="Pays, ville, groupe (APT28…)" autocomplete="off">
+      </section>
+
+      <section class="bloc">
+        <h2 class="bloc__titre">Attribution</h2>
+        <div class="segmente" id="filtre-attribution" role="radiogroup">
+          <button type="button" data-valeur="toutes" class="actif">Toutes</button>
+          <button type="button" data-valeur="officielle">Officielle</button>
+          <button type="button" data-valeur="revendiquee">Revendiquée</button>
+          <button type="button" data-valeur="soupconnee">Soupçonnée</button>
+        </div>
+      </section>
+
+      <section class="bloc">
+        <h2 class="bloc__titre">Par année <span class="bloc__aide">cliquer pour filtrer</span></h2>
+        <div class="annees" id="annees"></div>
+      </section>
+
+      <section class="bloc bloc--liste">
+        <h2 class="bloc__titre">Incidents <span class="bloc__aide" id="compteur-liste"></span></h2>
+        <ol class="liste" id="liste"></ol>
+      </section>
+    </aside>
+
+    <!-- ============ CARTE ============ -->
+    <section class="carte" id="carte" aria-label="Carte de l'Europe">
+      <svg id="svg-carte" role="img" aria-label="Carte des incidents"></svg>
+
+      <!-- Boutons de zoom -->
+      <div class="zoom">
+        <button type="button" id="zoom-plus" aria-label="Zoomer">+</button>
+        <button type="button" id="zoom-moins" aria-label="Dézoomer">−</button>
+        <button type="button" id="zoom-reset" aria-label="Recentrer" title="Recentrer">⟲</button>
+      </div>
+
+      <!-- Légende -->
+      <div class="legende" id="legende">
+        <div class="legende__titre" id="legende-titre">Incidents par pays</div>
+        <div class="legende__degrade"></div>
+        <div class="legende__echelle"><span>0</span><span id="legende-max">10</span></div>
+        <div class="legende__russie"><span class="hachure" id="legende-symbole-russie"></span><span id="legende-russie">Russie (agresseur)</span></div>
+        <div class="legende__note" id="legende-note"></div>
+      </div>
+
+      <!-- Infobulle au survol -->
+      <div class="infobulle" id="infobulle" hidden></div>
+
+      <!-- Fiche détaillée d'un incident -->
+      <article class="fiche" id="fiche" hidden aria-live="polite">
+        <button type="button" class="fiche__fermer" id="fiche-fermer" aria-label="Fermer">×</button>
+        <div id="fiche-contenu"></div>
+      </article>
+    </section>
+  </main>
+
+  <footer class="pied">
+    Données compilées à partir de sources publiques (gouvernements, Europol, médias, Wikipédia). Chaque fiche cite sa source. Frontières : Natural Earth.
+    <span id="pied-note"></span>
+  </footer>
+
+  <!-- Bibliothèque D3.js (dessin de la carte) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+  <!-- Données -->
+  <script src="data/pays.js"></script>
+  <script src="data/incidents.js"></script>
+  <script src="data/attaques-contre-russie.js"></script>
+  <!-- Code de l'application -->
+  <script src="js/app.js"></script>
+</body>
+</html>
