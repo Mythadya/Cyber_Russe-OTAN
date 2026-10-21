@@ -14,6 +14,7 @@
      3. Filtrage des données
      4. Dessin de la carte (pays + marqueurs)
      5. Zoom et déplacement
+     5b. Trajectoires animées et rejeu chronologique
      6. Panneau latéral (compteurs, années, liste)
      7. Fiche détaillée et infobulle
      8. Démarrage
@@ -74,7 +75,8 @@ const etat = {
   attribution: "toutes",              // "toutes" | "officielle" | "soupconnee"
   annee: null,                        // null = toutes les années
   recherche: "",
-  selection: null                     // incident actuellement ouvert
+  selection: null,                    // incident actuellement ouvert
+  trajectoires: true                  // afficher les lignes origine → incident
 };
 
 
@@ -169,6 +171,7 @@ const SENS = {
 // Couches SVG (l'ordre = l'ordre d'empilement)
 const defs = svg.append("defs");
 const coucheCarte = svg.append("g").attr("class", "couche-carte");     // zoomée
+const coucheTrajectoires = svg.append("g").attr("class", "couche-trajectoires"); // lignes animées
 const coucheMarqueurs = svg.append("g").attr("class", "couche-marqueurs"); // position recalculée
 
 // Motif hachuré pour la Russie
@@ -330,7 +333,8 @@ function mettreAJourMarqueurs() {
           .on("click", (event, n) => { event.stopPropagation(); selectionner(n.inc); })
           .on("keydown", (event, n) => { if (event.key === "Enter") selectionner(n.inc); })
           .on("mousemove", (event, n) => afficherInfobulleIncident(event, n.inc))
-          .on("mouseleave", cacherInfobulle);
+          .on("mouseenter", (event, n) => surlignerTrajectoire(n.inc.id))
+          .on("mouseleave", () => { cacherInfobulle(); surlignerTrajectoire(null); });
         g.append("circle").attr("class", "halo").attr("r", 8).attr("stroke", n => TYPES[n.inc.type].couleur);
         g.append("path")
           .attr("d", n => d3.symbol(TYPES[n.inc.type].forme, TAILLE_MARQUEUR)())
@@ -345,6 +349,7 @@ function mettreAJourMarqueurs() {
   groupes.raise();
   groupes.classed("actif", n => etat.selection && n.inc.id === etat.selection.id);
   placerMarqueurs(true);
+  mettreAJourTrajectoires();
 }
 
 // Place les marqueurs (avec ou sans animation)
@@ -357,6 +362,7 @@ function placerMarqueurs(anime = false) {
   cible.attr("transform", n => `translate(${n.x0 + n.dx},${n.y0 + n.dy})`);
   cibleL.attr("x1", n => n.x0).attr("y1", n => n.y0)
         .attr("x2", n => n.x0 + n.dx).attr("y2", n => n.y0 + n.dy);
+  placerTrajectoires(anime);
 }
 
 
@@ -403,6 +409,167 @@ function zoomerSur(inc) {
   const t = d3.zoomIdentity.translate(largeur / 2 + decalageX, hauteur / 2).scale(k).translate(-x, -y);
   svg.transition().duration(700).call(zoom.transform, t);
 }
+
+
+/* ---------------------------------------------------------------------
+   5b. TRAJECTOIRES ANIMÉES ET REJEU CHRONOLOGIQUE
+   Chaque incident est relié à son point d'origine (Moscou dans un sens,
+   Kyiv / Minsk / États-Unis dans l'autre) par une courbe :
+     1. la courbe se « dessine » de l'origine vers la cible
+        (astuce classique : stroke-dasharray + stroke-dashoffset) ;
+     2. une fois tracée, des tirets défilent pour montrer le sens.
+   Le bouton « Rejouer » fait réapparaître les attaques une par une,
+   dans l'ordre chronologique.
+   --------------------------------------------------------------------- */
+const mouvementReduit = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+const ORIGINES = {
+  MOS: { coord: [37.62, 55.75], nom: "Moscou" },
+  UKR: { coord: [30.52, 50.45], nom: "Kyiv" },
+  BLR: { coord: [27.56, 53.90], nom: "Minsk" },
+  USA: { coord: [-24, 47],      nom: "← États-Unis" }  // hors carte : point au bord de l'Atlantique
+};
+
+// Point de départ de la ligne d'un incident (null = pas de ligne, ex. Anonymous)
+function origineDe(inc) {
+  if (etat.sens === "russe") return ORIGINES.MOS;
+  return ORIGINES[inc.origine] || null;
+}
+
+// Courbe de Bézier quadratique entre l'origine et le marqueur, bombée vers le haut
+function cheminTrajectoire(n) {
+  if (!n.origine) return null;
+  const [x1, y1] = transformActuel.apply(projection(n.origine.coord));
+  const x2 = n.x0 + n.dx, y2 = n.y0 + n.dy;
+  const dx = x2 - x1, dy = y2 - y1, d = Math.hypot(dx, dy) || 1;
+  let px = -dy / d, py = dx / d;          // vecteur perpendiculaire
+  if (py > 0) { px = -px; py = -py; }     // toujours vers le haut
+  const courbure = d * 0.22;
+  const cx = (x1 + x2) / 2 + px * courbure, cy = (y1 + y2) / 2 + py * courbure;
+  return `M${x1},${y1} Q${cx},${cy} ${x2},${y2}`;
+}
+
+// Animation de tracé : la ligne « pousse » de l'origine vers la cible
+function dessinerTrace(selection, delai) {
+  selection.each(function (n, i) {
+    const longueur = this.getTotalLength();
+    d3.select(this)
+      .classed("flux", false)
+      .interrupt("trace")
+      .style("stroke-dasharray", `${longueur} ${longueur}`)
+      .style("stroke-dashoffset", longueur)
+      .transition("trace")
+        .delay(delai(n, i))
+        .duration(mouvementReduit ? 0 : 700)
+        .ease(d3.easeCubicOut)
+        .style("stroke-dashoffset", 0)
+      .on("end", function () {
+        // Tracé terminé : on passe aux tirets qui défilent (CSS)
+        d3.select(this).style("stroke-dasharray", null).style("stroke-dashoffset", null)
+          .classed("flux", !mouvementReduit);
+      });
+  });
+}
+
+function mettreAJourTrajectoires() {
+  // On mémorise l'origine sur chaque nœud : si on change de sens pendant
+  // qu'une ligne disparaît, elle garde son ancien point de départ.
+  noeuds.forEach(n => { n.origine = origineDe(n.inc); });
+  const avecLigne = etat.trajectoires ? noeuds.filter(n => n.origine) : [];
+  // Ordre chronologique : les lignes les plus anciennes se dessinent en premier
+  const rang = new Map(avecLigne.slice()
+    .sort((a, b) => a.inc.date.localeCompare(b.inc.date))
+    .map((n, i) => [n.inc.id, i]));
+
+  coucheTrajectoires.selectAll("path.trajectoire")
+    .data(avecLigne, n => n.inc.id)
+    .join(
+      entree => entree.append("path")
+        .attr("class", "trajectoire")
+        .attr("stroke", n => TYPES[n.inc.type].couleur)
+        .attr("d", cheminTrajectoire)
+        .call(sel => dessinerTrace(sel, n => Math.min(rang.get(n.inc.id) * 25, 1500))),
+      maj => maj,
+      sortie => sortie.attr("class", "trajectoire-sortante").interrupt("trace")
+        .transition().duration(200).style("opacity", 0).remove()
+    )
+    .classed("actif", n => etat.selection && n.inc.id === etat.selection.id);
+
+  // Points d'origine (une onde qui pulse + le nom de la ville)
+  const origines = [...new Set(avecLigne.map(n => n.origine))];
+  const groupes = coucheTrajectoires.selectAll("g.point-origine")
+    .data(origines, o => o.nom)
+    .join(entree => {
+      const g = entree.append("g").attr("class", "point-origine");
+      g.append("circle").attr("class", "origine-onde").attr("r", 5);
+      g.append("circle").attr("class", "origine").attr("r", 5);
+      g.append("text").attr("class", "origine-nom").attr("x", 9).attr("y", -8).text(o => o.nom);
+      return g;
+    });
+  groupes.raise();
+  placerTrajectoires(false);
+}
+
+// Recalcule les courbes quand la carte bouge (zoom, déplacement)
+function placerTrajectoires(anime = false) {
+  const lignes = coucheTrajectoires.selectAll("path.trajectoire");
+  (anime ? lignes.transition("position").duration(250) : lignes.interrupt("position"))
+    .attr("d", cheminTrajectoire);
+  coucheTrajectoires.selectAll("g.point-origine")
+    .attr("transform", o => `translate(${transformActuel.apply(projection(o.coord))})`);
+}
+
+function surlignerTrajectoire(id) {
+  coucheTrajectoires.selectAll("path.trajectoire").classed("survol", n => n.inc.id === id);
+}
+
+/* ---- Rejeu chronologique ------------------------------------------- */
+const chrono = document.getElementById("chrono");
+let minuteursRejeu = [];
+
+function arreterRejeu() {
+  minuteursRejeu.forEach(m => m.stop());
+  minuteursRejeu = [];
+  chrono.hidden = true;
+  coucheMarqueurs.selectAll("g.marqueur").interrupt("rejeu").attr("opacity", 1);
+}
+
+function rejouer() {
+  arreterRejeu();
+  fermerFiche();
+  const ordre = noeuds.slice().sort((a, b) => a.inc.date.localeCompare(b.inc.date));
+  if (!ordre.length) return;
+  const rang = new Map(ordre.map((n, i) => [n.inc.id, i]));
+  const pas = Math.max(120, Math.min(450, 14000 / ordre.length)); // ~14 s au total
+  const delaiLigne = etat.trajectoires && !mouvementReduit ? 650 : 0;
+
+  // 1. Tout cacher
+  const marqueurs = coucheMarqueurs.selectAll("g.marqueur");
+  marqueurs.interrupt("apparition").attr("opacity", 0);
+
+  // 2. Redessiner les lignes une par une, puis faire apparaître chaque marqueur
+  dessinerTrace(coucheTrajectoires.selectAll("path.trajectoire"), n => rang.get(n.inc.id) * pas);
+  marqueurs.transition("rejeu")
+    .delay(n => rang.get(n.inc.id) * pas + delaiLigne)
+    .duration(250)
+    .attr("opacity", 1);
+
+  // 3. Afficher la date de l'incident en cours
+  chrono.hidden = false;
+  ordre.forEach((n, i) => {
+    minuteursRejeu.push(d3.timeout(() => {
+      const mois = new Date(n.inc.date + "T12:00:00").toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
+      chrono.innerHTML = `${mois}<small>${i + 1} / ${ordre.length} · ${n.inc.titre}</small>`;
+    }, i * pas));
+  });
+  minuteursRejeu.push(d3.timeout(() => { chrono.hidden = true; }, ordre.length * pas + 2000));
+}
+
+document.getElementById("btn-rejouer").addEventListener("click", rejouer);
+document.getElementById("chk-trajectoires").addEventListener("change", e => {
+  etat.trajectoires = e.target.checked;
+  mettreAJourTrajectoires();
+});
 
 
 /* ---------------------------------------------------------------------
@@ -550,6 +717,8 @@ function selectionner(inc) {
   cacherInfobulle();
 
   coucheMarqueurs.selectAll("g.marqueur").classed("actif", n => n.inc.id === inc.id);
+  coucheTrajectoires.classed("focus", true)
+    .selectAll("path.trajectoire").classed("actif", n => n.inc.id === inc.id);
   d3.selectAll("#liste button").classed("actif", d => d.id === inc.id);
   const bouton = d3.selectAll("#liste button").filter(d => d.id === inc.id).node();
   if (bouton) bouton.scrollIntoView({ block: "nearest", behavior: "smooth" });
@@ -561,6 +730,7 @@ function fermerFiche() {
   etat.selection = null;
   fiche.hidden = true;
   coucheMarqueurs.selectAll("g.marqueur").classed("actif", false);
+  coucheTrajectoires.classed("focus", false).selectAll("path.trajectoire").classed("actif", false);
   d3.selectAll("#liste button").classed("actif", false);
 }
 document.getElementById("fiche-fermer").onclick = fermerFiche;
@@ -613,6 +783,7 @@ function cacherInfobulle() { infobulle.hidden = true; }
 function toutMettreAJour() {
   // Si l'incident ouvert disparaît des filtres, on ferme sa fiche
   if (etat.selection && !incidentsFiltres().some(i => i.id === etat.selection.id)) fermerFiche();
+  arreterRejeu();
   mettreAJourEntete();
   mettreAJourStats();
   mettreAJourAnnees();

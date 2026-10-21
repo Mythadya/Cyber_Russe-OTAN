@@ -73,6 +73,15 @@
         <button type="button" id="zoom-reset" aria-label="Recentrer" title="Recentrer">⟲</button>
       </div>
 
+      <!-- Animations : rejouer la chronologie / afficher les trajectoires -->
+      <div class="animation-ctrl">
+        <button type="button" id="btn-rejouer">▶ Rejouer la chronologie</button>
+        <label class="interrupteur"><input type="checkbox" id="chk-trajectoires" checked> Trajectoires</label>
+      </div>
+
+      <!-- Date affichée pendant le rejeu -->
+      <div class="chrono" id="chrono" hidden aria-live="polite"></div>
+
       <!-- Légende -->
       <div class="legende" id="legende">
         <div class="legende__titre" id="legende-titre">Incidents par pays</div>

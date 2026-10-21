@@ -38,6 +38,8 @@ projet/
 ## Fonctionnalités
 
 - **Deux sens de lecture** : en mode « Attaques russes », les pays visés sont colorés en rouge et la Russie est hachurée. En mode « Attaques contre la Russie », la Russie (cible) est en rouge et les pays d'origine des attaques sont colorés en bleu. Les attaques venues de pays absents de la carte (États-Unis) ou d'origine internationale (Anonymous) sont signalées dans la légende.
+- **Trajectoires animées** : chaque incident est relié à son point d'origine (Moscou, ou Kyiv / Minsk / États-Unis dans l'autre sens) par une courbe qui se dessine, puis des tirets défilent pour montrer le sens de l'attaque. Au clic sur un incident, sa ligne ressort et les autres s'estompent. Une case permet de masquer les lignes.
+- **Bouton « Rejouer la chronologie »** : les attaques réapparaissent une par une dans l'ordre des dates (environ 14 secondes), avec le mois et le titre affichés en haut de la carte. Idéal pour commencer l'oral.
 - **Carte choroplèthe** : chaque pays est coloré selon son nombre d'incidents.
 - **Marqueurs** avec une couleur **et** une forme par type d'attaque, ce qui reste lisible pour les personnes daltoniennes.
 - **Filtres combinables** : type (compteurs en haut), attribution (officielle / revendiquée / soupçonnée), année (graphique cliquable), recherche texte sans tenir compte des accents.
@@ -59,6 +61,8 @@ Un `fetch("incidents.json")` est bloqué par le navigateur quand on ouvre la pag
 Tous les filtres modifient l'objet `etat`, puis `toutMettreAJour()` redessine chaque partie de l'interface à partir de lui. C'est le même principe que React ou Vue, mais en JavaScript pur.
 
 **La bascule entre les deux sens** repose sur un objet de configuration `SENS` : pour chaque sens, il indique quelles données afficher, quels titres, quelle zone cadrer et quel champ utiliser pour colorier les pays (`pays` visé, ou `origine` de l'attaque). Changer de sens revient à changer `etat.sens`, puis à tout redessiner. Le même code sert pour les deux cartes.
+
+**Comment la ligne « se dessine »** : on mesure la longueur de la courbe avec `getTotalLength()`, on la transforme en un seul long tiret (`stroke-dasharray`) qu'on décale de toute sa longueur (`stroke-dashoffset`), puis on anime ce décalage jusqu'à 0. La courbe est une **courbe de Bézier quadratique** (commande SVG `Q`) dont le point de contrôle est décalé perpendiculairement pour bomber la ligne. Les animations sont désactivées si l'utilisateur a demandé « réduire les animations » dans son système (`prefers-reduced-motion`), par souci d'accessibilité.
 
 **Le « data join » de D3** (`.data(...).join(...)`) associe chaque incident à un élément SVG : D3 crée les nouveaux marqueurs, met à jour ceux qui existent et supprime ceux qui disparaissent, avec une animation.
 
